@@ -5,20 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leaflet Map with Distance Calculation</title>
 
-    <!-- Include Leaflet CSS -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
     />
 
-    <!-- Define CSS for the map container -->
     <style>
-      /* Set the map container to a specific height */
       #map {
         height: 700px;
       }
       .distance-label {
-        /*background-color: white; */
         padding: 4px;
         border: 1px solid #ccc;
         border-radius: bold;
@@ -27,40 +23,49 @@
     </style>
   </head>
   <body>
-    <!-- Create a div for the map with an id of "map" -->
     <div id="map"></div>
 
-    <!-- Create input fields for the first marker's latitude and longitude -->
+
+    <!-- THESE ARE INPUT FIELDS FOR LATITUDE AND LONGITUDE -->
+
+    <!-- Create input fields for the source marker's latitude and longitude -->
+    
     <div>
-      <label for="latitude1">Latitude (Marker 1):</label>
+      <label for="latitude1">Source Latitude (Marker 1):</label>
       <input type="text" id="latitude1" placeholder="Enter latitude" />
     </div>
     <div>
-      <label for="longitude1">Longitude (Marker 1):</label>
+      <label for="longitude1">Source Longitude (Marker 1):</label>
       <input type="text" id="longitude1" placeholder="Enter longitude" />
     </div>
 
-    <!-- Create input fields for the second marker's latitude and longitude -->
+    <!-- Button to add source marker -->
+    <button id="addSourceMarker">Add Source Marker</button>
+
+    <!-- Button to calculate shortest distance -->
+    <button id="calculateShortestDistance">Calculate Shortest Distance</button>
+
+    <!-- Display the shortest distance and closest destination marker -->
+    <div id="distance">Shortest Distance: N/A</div>
+
+    <!-- Create input fields for adding new destination markers -->
     <div>
-      <label for="latitude2">Latitude (Marker 2):</label>
-      <input type="text" id="latitude2" placeholder="Enter latitude" />
+      <label for="newLatitude">New Destination Latitude:</label>
+      <input type="text" id="newLatitude" placeholder="Enter latitude" />
     </div>
     <div>
-      <label for="longitude2">Longitude (Marker 2):</label>
-      <input type="text" id="longitude2" placeholder="Enter longitude" />
+      <label for="newLongitude">New Destination Longitude:</label>
+      <input type="text" id="newLongitude" placeholder="Enter longitude" />
     </div>
-
-    <!-- Button to calculate distance -->
-    <button id="calculateDistance">Calculate Distance</button>
-
-    <!-- Display the calculated distance with the correct ID -->
-    <div id="distance">Distance: N/A</div>
+    <button id="addMarker">Add Destination Marker</button>
 
     <!-- Include Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 
     <!-- JavaScript for the map and distance calculation -->
     <script>
+
+        // DISTANCE FUNCTION
       // Function to calculate the distance using Haversine formula
       function calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371; // Radius of the Earth in kilometers
@@ -91,134 +96,142 @@
       }
 
       // Create a map instance and set its view to a specific location and zoom level
-      var map = L.map('map').setView([17.8868, 83.3185], 13); // Adjusted view for better visibility
+      var map = L.map('map').setView([17.8868, 83.3185], 10); // Adjusted view for better visibility
 
       // Add an OpenStreetMap tile layer
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
+      
+    //   //changing the color of the source marker
+    //   var sourceMarkerColor = L.divIcon({
+    //     className: 'custom-source-icon',
+    //     html: '<i class="fas fa-map-marker-alt fa-2x" style="color: red;"></i>',
+    //     iconSize: [32,32],
+    // //use this function to change the color of the source marker
+    // })
 
-      // Initialize markers
-      var marker1;
-      var marker2;
+    // Initialize markers
+      var sourceMarker;
       var distanceMarker;
+      var destinationMarkers = []; //USED AN EMPTY ARRAY FOR MULTIPLE NODES
 
-      // Function to update markers and calculate distance
-      function updateMarkersAndCalculateDistance() {
-        const latitude1 = parseFloat(
-          document.getElementById('latitude1').value
-        );
-        const longitude1 = parseFloat(
-          document.getElementById('longitude1').value
-        );
-        const latitude2 = parseFloat(
-          document.getElementById('latitude2').value
-        );
-        const longitude2 = parseFloat(
-          document.getElementById('longitude2').value
-        );
+      // Function to add the source marker
+      function addSourceMarker() {
+        const latitude1 = parseFloat(document.getElementById('latitude1').value);
+        const longitude1 = parseFloat(document.getElementById('longitude1').value);
 
-        // Check if input values are valid
-        if (
-          isNaN(latitude1) ||
-          isNaN(longitude1) ||
-          isNaN(latitude2) ||
-          isNaN(longitude2)
-        ) {
-          alert('Please enter valid latitude and longitude for both markers.');
+        // Check if input values are valid for the source marker
+        if (isNaN(latitude1) || isNaN(longitude1)) {
+          alert('Please enter valid latitude and longitude for the source marker.');
           return;
         }
 
-        // Remove previous markers if they exist
-        if (marker1) {
-          map.removeLayer(marker1);
+        // Remove the existing source marker if it exists
+        if (sourceMarker) {
+          map.removeLayer(sourceMarker);
         }
-        if (marker2) {
-          map.removeLayer(marker2);
+
+        // Create a new source marker and add it to the map
+        sourceMarker = L.marker([latitude1, longitude1],).addTo(map);
+      }
+
+      // Add a click event listener to the "Add Source Marker" button
+      document.getElementById('addSourceMarker').addEventListener('click', addSourceMarker);
+
+      // Function to update markers and find the shortest distance
+      function updateMarkersAndFindShortestDistance() {
+        const latitude1 = parseFloat(document.getElementById('latitude1').value);
+        const longitude1 = parseFloat(document.getElementById('longitude1').value);
+
+        // Check if input values are valid for the source marker
+        if (isNaN(latitude1) || isNaN(longitude1)) {
+          alert('Please enter valid latitude and longitude for the source marker.');
+          return;
         }
+
+        // Calculate distances to each destination marker and draw lines
+        let shortestDistance = Infinity;
+        let closestDestinationMarker = null;
+        let shortestDistancePolyline = null;
+
+        destinationMarkers.forEach(destination => {
+          const { latitude, longitude } = destination;
+          const distance = calculateDistance(latitude1, longitude1, latitude, longitude);
+
+          // Update shortest distance and closest destination marker if needed
+          if (distance < shortestDistance) {
+            shortestDistance = distance;
+            closestDestinationMarker = destination;
+          }
+
+          // Draw a line between source and destination markers
+          const polyline = L.polyline(
+            [
+              [latitude1, longitude1],
+              [latitude, longitude],
+            ],
+            {
+              color: 'red', // Line color
+              weight: 2, // Line thickness
+            }
+          ).addTo(map);
+
+          // Check if this is the shortest distance polyline
+          if (distance === shortestDistance) {
+            shortestDistancePolyline = polyline;
+          }
+        });
+
+        // Update the HTML with the shortest distance and closest destination marker details
+        const distanceElement = document.getElementById('distance');
+        if (closestDestinationMarker) {
+          distanceElement.textContent = `Shortest distance: ${shortestDistance.toFixed(2)} kilometers to Destination Marker`;
+        } else {
+          distanceElement.textContent = `No destinations added.`;
+        }
+        // Remove previous shortest distance polyline if it exists
         if (distanceMarker) {
           map.removeLayer(distanceMarker);
         }
 
-        // Create new markers
-        marker1 = L.marker([latitude1, longitude1]).addTo(map);
-        marker1.bindPopup(
-          `Marker 1<br>Latitude: ${latitude1}<br>Longitude: ${longitude1}`
-        );
-
-        marker2 = L.marker([latitude2, longitude2]).addTo(map);
-        marker2.bindPopup('Marker 2');
-
-        // Create a polyline to represent the distance between marker1 and marker2
-        const polyline = L.polyline(
-          [
-            [latitude1, longitude1],
-            [latitude2, longitude2],
-          ],
-          {
-            color: 'blue', // Line color
-            weight: 2, // Line thickness
-          }
-        ).addTo(map);
-
-        // Calculate the distance between marker1 and marker2
-        const distance = calculateDistance(
-          latitude1,
-          longitude1,
-          latitude2,
-          longitude2
-        );
-
-        // Update the distance in the HTML
-        const distanceElement = document.getElementById('distance');
-        distanceElement.textContent = `Distance between marker1 and marker2: ${distance.toFixed(
-          2
-        )} kilometers`;
-
-        // Calculate the midpoint
-        const midpoint = polyline.getCenter();
-
-        // Create a marker for the distance label
+        // Calculate the midpoint of the shortest distance and add a marker for the distance label
+        const midpoint = shortestDistancePolyline.getCenter();
         const distanceIcon = L.divIcon({
           className: 'distance-label',
-          html: `${distance.toFixed(2)}`,
+          html: `${shortestDistance.toFixed(2)} km`,
         });
         distanceMarker = L.marker(midpoint, { icon: distanceIcon }).addTo(map);
       }
 
-      // Add a click event listener to the "Calculate Distance" button
-      document
-        .getElementById('calculateDistance')
-        .addEventListener('click', updateMarkersAndCalculateDistance);
-    
-    
-    function addMarker() {
-      const latitude = parseFloat(document.getElementById('newLatitude').value);
-      const longitude = parseFloat(document.getElementById('newlongitude').value);
-    
-    
-      if(isNaN(latitude) || isNaN(longitude)) {
-        alert(`please enter the valid latitude and longitude for the new marker`);
-        return;
+      // Add a click event listener to the "Calculate Shortest Distance" button
+      document.getElementById('calculateShortestDistance').addEventListener('click', function () {
+        addSourceMarker(); // Call the function to add the source marker
+        updateMarkersAndFindShortestDistance(); // Call the function to calculate distances
+      });
+
+      // Function to add a new destination marker to the array
+      function addMarker() {
+        const latitude = parseFloat(document.getElementById('newLatitude').value);
+        const longitude = parseFloat(document.getElementById('newLongitude').value);
+
+        if (isNaN(latitude) || isNaN(longitude)) {
+          alert(`Please enter valid latitude and longitude for the new destination marker.`);
+          return;
+        }
+
+        // Add the new destination marker to the array
+        destinationMarkers.push({ latitude, longitude });
+
+        // Creating a new marker for the destination
+        const newMarker = L.marker([latitude, longitude]).addTo(map);
+        newMarker.bindPopup(`Destination Marker<br>Latitude: ${latitude}<br>Longitude: ${longitude}`);
       }
 
-      //creating a new marker
+      // Add a click event listener to the "Add Destination Marker" button
+      document.getElementById('addMarker').addEventListener('click', addMarker);
 
-      const newMarker = L.marker([latitude, longitude]).addTo(map);
-      newMarker.bindPopup(`new marker<br> Latitude: ${latitude}<br> Longitude : ${longitude}`);
-    }
-
-    document.getElementById('addMarker').addEventListener('click',addMarker);
-
-    
     </script>
-
-    
-
-
   </body>
 </html>
-
-
-

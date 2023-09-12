@@ -1,0 +1,3 @@
+[submodule "crn-frontend"]
+	path = crn-frontend
+	url = https://github.com/psidh/CoalRaker.git
